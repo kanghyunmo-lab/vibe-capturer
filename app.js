@@ -205,7 +205,7 @@ function stopRecording() {
 
     // 마지막 interim 텍스트도 포함 (모바일 대응)
     const finalText = (state.transcribedText + ' ' + state.interimText).trim();
-    
+
     console.log('녹음 중지 - 최종 텍스트:', finalText);
     console.log('- transcribedText:', state.transcribedText);
     console.log('- interimText:', state.interimText);
@@ -257,7 +257,7 @@ function handleSpeechResult(event) {
         state.transcribedText += finalTranscript;
         console.log('최종 텍스트 추가:', finalTranscript);
     }
-    
+
     // interim 텍스트 저장 (모바일에서 final로 전환 안 될 수 있음)
     state.interimText = interimTranscript;
 
@@ -270,7 +270,7 @@ function handleSpeechResult(event) {
 
 function handleSpeechError(event) {
     console.error('음성 인식 오류:', event.error, event);
-    
+
     const errorMessages = {
         'no-speech': '음성이 감지되지 않았습니다. 다시 시도해주세요.',
         'audio-capture': '마이크에 접근할 수 없습니다. 권한을 확인해주세요.',
@@ -278,9 +278,9 @@ function handleSpeechError(event) {
         'network': '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.',
         'aborted': '음성 인식이 중단되었습니다.'
     };
-    
+
     const message = errorMessages[event.error] || `음성 인식 오류: ${event.error}`;
-    
+
     // aborted는 정상적인 중지이므로 표시하지 않음
     if (event.error !== 'aborted') {
         showToast(message, 'error');
@@ -289,7 +289,7 @@ function handleSpeechError(event) {
 
 function handleSpeechEnd() {
     console.log('음성 인식 종료 - isRecording:', state.isRecording);
-    
+
     if (state.isRecording) {
         // 연속 모드에서만 자동 재시작
         if (state.recognition.continuous) {
@@ -324,15 +324,27 @@ async function processWithAI(text) {
         console.error('AI 처리 오류:', error);
         elements.processingIndicator.classList.remove('active');
         elements.recordingStatus.classList.remove('active');
-        
+
         let errorMessage = 'AI 처리 중 오류가 발생했습니다.';
+        let detailedError = error.message || '알 수 없는 오류';
+
         if (error.message.includes('API key')) {
-            errorMessage = 'API 키가 유효하지 않습니다. 설정을 확인해주세요.';
+            errorMessage = 'API 키가 유효하지 않습니다.';
+            detailedError += '\n\n해결방법:\n1. 설정에서 API 키 확인\n2. https://makersuite.google.com/app/apikey 에서 새 키 발급';
             elements.settingsPanel.classList.add('active');
-        } else if (error.message.includes('quota')) {
-            errorMessage = 'API 할당량이 초과되었습니다. 나중에 다시 시도해주세요.';
+        } else if (error.message.includes('quota') || error.message.includes('429')) {
+            errorMessage = 'API 할당량이 초과되었습니다.';
+            detailedError += '\n\n해결방법:\n1. 잠시 후 다시 시도\n2. 새 API 키 발급';
+        } else if (error.message.includes('400')) {
+            errorMessage = 'API 요청 형식 오류';
+            detailedError += '\n\n모델명이나 요청 형식에 문제가 있을 수 있습니다.';
+        } else if (error.message.includes('403')) {
+            errorMessage = 'API 키 권한 오류';
+            detailedError += '\n\n해결방법:\n1. API 키가 활성화되었는지 확인\n2. Gemini API가 활성화되었는지 확인';
         }
-        
+
+        // 화면에 상세 오류 표시
+        alert(`${errorMessage}\n\n상세 오류:\n${detailedError}`);
         showToast(errorMessage, 'error');
     }
 }
@@ -391,8 +403,10 @@ created: ${new Date().toISOString().slice(0, 16).replace('T', ' ')}
     });
 
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'API 호출 실패');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`;
+        console.error('API 응답 오류:', response.status, errorData);
+        throw new Error(errorMsg);
     }
 
     const data = await response.json();
