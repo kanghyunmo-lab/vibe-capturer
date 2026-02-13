@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vibe Capturer - 음성 메모 비서</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <header class="header">
+            <div class="logo">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="22"/>
+                </svg>
+                <h1>Vibe Capturer</h1>
+            </div>
+            <button class="settings-btn" id="settingsBtn" title="설정">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.2 4.2l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.2-4.2l4.2-4.2"/>
+                </svg>
+            </button>
+        </header>
+
+        <!-- 설정 패널 -->
+        <div class="settings-panel" id="settingsPanel">
+            <h3>설정</h3>
+            <div class="setting-item">
+                <label for="apiKey">Google Gemini API 키</label>
+                <input type="password" id="apiKey" placeholder="API 키를 입력하세요">
+                <small>API 키는 브라우저에만 저장되며 외부로 전송되지 않습니다.</small>
+            </div>
+            <div class="setting-item">
+                <label for="vaultPath">Obsidian 볼트 경로</label>
+                <div class="path-selector">
+                    <input type="text" id="vaultPath" placeholder="L:\obsidian auto\" readonly>
+                    <button id="selectVaultBtn" class="btn-secondary">폴더 선택</button>
+                </div>
+                <small>노트가 저장될 Obsidian 볼트 폴더를 선택하세요.</small>
+            </div>
+            <button id="saveSettingsBtn" class="btn-primary">저장</button>
+        </div>
+
+        <!-- 메인 컨텐츠 -->
+        <main class="main-content">
+            <!-- 녹음 영역 -->
+            <section class="recording-section">
+                <div class="recording-visualizer" id="visualizer">
+                    <div class="pulse-ring"></div>
+                    <div class="pulse-ring"></div>
+                    <div class="pulse-ring"></div>
+                    <button class="record-btn" id="recordBtn">
+                        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="22"/>
+                        </svg>
+                        <svg class="stop-icon" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+                            <rect x="6" y="6" width="12" height="12" rx="2"/>
+                        </svg>
+                    </button>
+                </div>
+                <p class="recording-status" id="recordingStatus">녹음 버튼을 눌러 시작하세요</p>
+                <div class="timer" id="timer">00:00</div>
+            </section>
+
+            <!-- 실시간 텍스트 변환 -->
+            <section class="transcription-section">
+                <h2>실시간 텍스트 변환</h2>
+                <div class="transcription-box" id="transcriptionBox">
+                    <p class="placeholder">음성이 여기에 텍스트로 표시됩니다...</p>
+                </div>
+            </section>
+
+            <!-- AI 처리 상태 -->
+            <div class="processing-indicator" id="processingIndicator">
+                <div class="spinner"></div>
+                <p>AI가 내용을 분석하고 있습니다...</p>
+            </div>
+
+            <!-- 마크다운 미리보기 -->
+            <section class="preview-section" id="previewSection">
+                <h2>마크다운 미리보기</h2>
+                <div class="category-badge" id="categoryBadge"></div>
+                <div class="markdown-preview" id="markdownPreview"></div>
+                
+                <!-- 내보내기 버튼 -->
+                <div class="export-buttons">
+                    <button class="btn-primary" id="saveToObsidianBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        Obsidian에 저장
+                    </button>
+                    <button class="btn-secondary" id="copyBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        복사
+                    </button>
+                    <button class="btn-secondary" id="downloadBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        다운로드
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <!-- 토스트 알림 -->
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

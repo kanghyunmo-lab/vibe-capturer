@@ -1,0 +1,18 @@
+# 프로젝트 파일
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# 에디터 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 시스템 파일
+desktop.ini
+$RECYCLE.BIN/
+
+# 개인 설정 (API 키는 브라우저에 저장되므로 제외)
+# 필요시 추가
