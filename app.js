@@ -319,7 +319,7 @@ created: ${new Date().toISOString().slice(0, 16).replace('T', ' ')}
 ## 메모
 [추가 컨텍스트나 인사이트]`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
