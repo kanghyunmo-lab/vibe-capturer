@@ -1,3 +1,8 @@
+// ==================== 설정 ====================
+// 🔑 여기에 Google Gemini API 키를 입력하세요
+// API 키 발급: https://makersuite.google.com/app/apikey
+const DEFAULT_API_KEY = 'AIzaSyDjeivNn-fOTFQGrfCL02nkRWekAJcX8QM'; // ← 여기에 API 키를 입력하세요
+
 // ==================== 상태 관리 ====================
 const state = {
     isRecording: false,
@@ -5,7 +10,7 @@ const state = {
     transcribedText: '',
     startTime: null,
     timerInterval: null,
-    apiKey: localStorage.getItem('gemini_api_key') || '',
+    apiKey: localStorage.getItem('gemini_api_key') || DEFAULT_API_KEY,
     vaultPath: localStorage.getItem('vault_path') || 'L:\\obsidian auto\\',
     vaultHandle: null,
     currentMarkdown: '',
@@ -44,21 +49,21 @@ function init() {
         elements.apiKeyInput.value = state.apiKey;
     }
     elements.vaultPathInput.value = state.vaultPath;
-    
+
     // Web Speech API 지원 확인
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         showToast('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome을 사용해주세요.', 'error');
         elements.recordBtn.disabled = true;
         return;
     }
-    
+
     // Speech Recognition 초기화
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     state.recognition = new SpeechRecognition();
     state.recognition.lang = 'ko-KR';
     state.recognition.continuous = true;
     state.recognition.interimResults = true;
-    
+
     // 이벤트 리스너 설정
     setupEventListeners();
 }
@@ -69,15 +74,15 @@ function setupEventListeners() {
     elements.settingsBtn.addEventListener('click', toggleSettings);
     elements.saveSettingsBtn.addEventListener('click', saveSettings);
     elements.selectVaultBtn.addEventListener('click', selectVaultFolder);
-    
+
     // 녹음
     elements.recordBtn.addEventListener('click', toggleRecording);
-    
+
     // Speech Recognition 이벤트
     state.recognition.onresult = handleSpeechResult;
     state.recognition.onerror = handleSpeechError;
     state.recognition.onend = handleSpeechEnd;
-    
+
     // 내보내기
     elements.saveToObsidianBtn.addEventListener('click', saveToObsidian);
     elements.copyBtn.addEventListener('click', copyToClipboard);
@@ -92,10 +97,10 @@ function toggleSettings() {
 function saveSettings() {
     state.apiKey = elements.apiKeyInput.value.trim();
     state.vaultPath = elements.vaultPathInput.value.trim();
-    
+
     localStorage.setItem('gemini_api_key', state.apiKey);
     localStorage.setItem('vault_path', state.vaultPath);
-    
+
     showToast('설정이 저장되었습니다.', 'success');
     elements.settingsPanel.classList.remove('active');
 }
@@ -137,11 +142,11 @@ function startRecording() {
         elements.settingsPanel.classList.add('active');
         return;
     }
-    
+
     state.isRecording = true;
     state.transcribedText = '';
     state.startTime = Date.now();
-    
+
     // UI 업데이트
     elements.recordBtn.classList.add('recording');
     elements.visualizer.classList.add('recording');
@@ -151,10 +156,10 @@ function startRecording() {
     elements.recordingStatus.classList.add('active');
     elements.transcriptionBox.innerHTML = '<p class="text"></p>';
     elements.previewSection.classList.remove('active');
-    
+
     // 타이머 시작
     startTimer();
-    
+
     // 음성 인식 시작
     try {
         state.recognition.start();
@@ -167,7 +172,7 @@ function startRecording() {
 
 function stopRecording() {
     state.isRecording = false;
-    
+
     // UI 업데이트
     elements.recordBtn.classList.remove('recording');
     elements.visualizer.classList.remove('recording');
@@ -175,13 +180,13 @@ function stopRecording() {
     elements.stopIcon.style.display = 'none';
     elements.recordingStatus.textContent = '녹음 완료';
     elements.recordingStatus.classList.remove('active');
-    
+
     // 타이머 중지
     stopTimer();
-    
+
     // 음성 인식 중지
     state.recognition.stop();
-    
+
     // AI 처리 시작
     if (state.transcribedText.trim()) {
         processWithAI(state.transcribedText);
@@ -211,7 +216,7 @@ function stopTimer() {
 function handleSpeechResult(event) {
     let interimTranscript = '';
     let finalTranscript = '';
-    
+
     for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
@@ -220,11 +225,11 @@ function handleSpeechResult(event) {
             interimTranscript += transcript;
         }
     }
-    
+
     if (finalTranscript) {
         state.transcribedText += finalTranscript;
     }
-    
+
     // 실시간 표시
     const textElement = elements.transcriptionBox.querySelector('.text');
     if (textElement) {
@@ -253,12 +258,12 @@ function handleSpeechEnd() {
 // ==================== AI 처리 ====================
 async function processWithAI(text) {
     elements.processingIndicator.classList.add('active');
-    
+
     try {
         const result = await callGeminiAPI(text);
         state.currentMarkdown = result.markdown;
         state.currentCategory = result.category;
-        
+
         displayMarkdownPreview(result.markdown, result.category);
         elements.processingIndicator.classList.remove('active');
         showToast('AI 처리가 완료되었습니다.', 'success');
@@ -321,22 +326,22 @@ created: ${new Date().toISOString().slice(0, 16).replace('T', ' ')}
             }
         })
     });
-    
+
     if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error?.message || 'API 호출 실패');
     }
-    
+
     const data = await response.json();
     const responseText = data.candidates[0].content.parts[0].text;
-    
+
     // JSON 추출 (```json ... ``` 형식일 수 있음)
     let jsonText = responseText;
     const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
     if (jsonMatch) {
         jsonText = jsonMatch[1];
     }
-    
+
     const result = JSON.parse(jsonText);
     return result;
 }
@@ -349,14 +354,14 @@ function displayMarkdownPreview(markdown, category) {
         '마라톤': 'marathon',
         '아이디어': 'idea'
     };
-    
+
     const categoryClass = categoryMap[category] || 'idea';
     elements.categoryBadge.textContent = category;
     elements.categoryBadge.className = `category-badge ${categoryClass}`;
-    
+
     // 마크다운 표시
     elements.markdownPreview.innerHTML = `<pre>${escapeHtml(markdown)}</pre>`;
-    
+
     // 섹션 표시
     elements.previewSection.classList.add('active');
 }
@@ -373,7 +378,7 @@ async function saveToObsidian() {
         showToast('저장할 내용이 없습니다.', 'error');
         return;
     }
-    
+
     try {
         // File System Access API 사용
         if (!state.vaultHandle) {
@@ -381,15 +386,15 @@ async function saveToObsidian() {
             elements.settingsPanel.classList.add('active');
             return;
         }
-        
+
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
         const filename = `vibe-${timestamp}.md`;
-        
+
         const fileHandle = await state.vaultHandle.getFileHandle(filename, { create: true });
         const writable = await fileHandle.createWritable();
         await writable.write(state.currentMarkdown);
         await writable.close();
-        
+
         showToast(`Obsidian에 저장되었습니다: ${filename}`, 'success');
     } catch (error) {
         console.error('파일 저장 오류:', error);
@@ -402,7 +407,7 @@ async function copyToClipboard() {
         showToast('복사할 내용이 없습니다.', 'error');
         return;
     }
-    
+
     try {
         await navigator.clipboard.writeText(state.currentMarkdown);
         showToast('클립보드에 복사되었습니다.', 'success');
@@ -417,10 +422,10 @@ function downloadMarkdown() {
         showToast('다운로드할 내용이 없습니다.', 'error');
         return;
     }
-    
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
     const filename = `vibe-${timestamp}.md`;
-    
+
     const blob = new Blob([state.currentMarkdown], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -430,7 +435,7 @@ function downloadMarkdown() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     showToast('파일이 다운로드되었습니다.', 'success');
 }
 
@@ -438,7 +443,7 @@ function downloadMarkdown() {
 function showToast(message, type = 'success') {
     elements.toast.textContent = message;
     elements.toast.className = `toast ${type} show`;
-    
+
     setTimeout(() => {
         elements.toast.classList.remove('show');
     }, 3000);
