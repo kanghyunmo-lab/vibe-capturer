@@ -1,6 +1,7 @@
 // ==================== 설정 ====================
-// 🔑 Google Gemini API 키는 설정 메뉴에서 입력하세요
-// API 키 발급: https://makersuite.google.com/app/apikey
+// 🔑 API 키가 코드에 직접 설정되어 있습니다
+const API_KEY = 'AIzaSyDjeivNn-fOTFQGrfCL02nkRWekAJcX8QM';
+const VAULT_PATH = 'L:\\obsidian auto\\';
 
 // ==================== 상태 관리 ====================
 const state = {
@@ -10,8 +11,6 @@ const state = {
     interimText: '',
     startTime: null,
     timerInterval: null,
-    apiKey: localStorage.getItem('gemini_api_key') || '',
-    vaultPath: localStorage.getItem('vault_path') || 'L:\\obsidian auto\\',
     vaultHandle: null,
     currentMarkdown: '',
     currentCategory: '',
@@ -20,12 +19,6 @@ const state = {
 
 // ==================== DOM 요소 ====================
 const elements = {
-    settingsBtn: document.getElementById('settingsBtn'),
-    settingsPanel: document.getElementById('settingsPanel'),
-    apiKeyInput: document.getElementById('apiKey'),
-    vaultPathInput: document.getElementById('vaultPath'),
-    selectVaultBtn: document.getElementById('selectVaultBtn'),
-    saveSettingsBtn: document.getElementById('saveSettingsBtn'),
     recordBtn: document.getElementById('recordBtn'),
     visualizer: document.getElementById('visualizer'),
     recordingStatus: document.getElementById('recordingStatus'),
@@ -45,17 +38,6 @@ const elements = {
 
 // ==================== 초기화 ====================
 function init() {
-    // 설정 불러오기
-    if (state.apiKey) {
-        elements.apiKeyInput.value = state.apiKey;
-    } else {
-        // API 키가 없으면 설정 패널 자동 열기
-        setTimeout(() => {
-            elements.settingsPanel.classList.add('active');
-            showToast('먼저 Google Gemini API 키를 입력해주세요.', 'error');
-        }, 500);
-    }
-    elements.vaultPathInput.value = state.vaultPath;
 
     // Web Speech API 지원 확인
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -80,11 +62,6 @@ function init() {
 
 // ==================== 이벤트 리스너 ====================
 function setupEventListeners() {
-    // 설정 패널
-    elements.settingsBtn.addEventListener('click', toggleSettings);
-    elements.saveSettingsBtn.addEventListener('click', saveSettings);
-    elements.selectVaultBtn.addEventListener('click', selectVaultFolder);
-
     // 녹음
     elements.recordBtn.addEventListener('click', toggleRecording);
 
@@ -99,42 +76,7 @@ function setupEventListeners() {
     elements.downloadBtn.addEventListener('click', downloadMarkdown);
 }
 
-// ==================== 설정 관리 ====================
-function toggleSettings() {
-    elements.settingsPanel.classList.toggle('active');
-}
 
-function saveSettings() {
-    state.apiKey = elements.apiKeyInput.value.trim();
-    state.vaultPath = elements.vaultPathInput.value.trim();
-
-    localStorage.setItem('gemini_api_key', state.apiKey);
-    localStorage.setItem('vault_path', state.vaultPath);
-
-    showToast('설정이 저장되었습니다.', 'success');
-    elements.settingsPanel.classList.remove('active');
-}
-
-async function selectVaultFolder() {
-    try {
-        // File System Access API 사용
-        if ('showDirectoryPicker' in window) {
-            const dirHandle = await window.showDirectoryPicker({
-                mode: 'readwrite'
-            });
-            state.vaultHandle = dirHandle;
-            elements.vaultPathInput.value = dirHandle.name;
-            showToast('폴더가 선택되었습니다.', 'success');
-        } else {
-            showToast('이 브라우저는 폴더 선택을 지원하지 않습니다.', 'error');
-        }
-    } catch (error) {
-        if (error.name !== 'AbortError') {
-            console.error('폴더 선택 오류:', error);
-            showToast('폴더 선택 중 오류가 발생했습니다.', 'error');
-        }
-    }
-}
 
 // ==================== 녹음 관리 ====================
 function toggleRecording() {
@@ -146,12 +88,6 @@ function toggleRecording() {
 }
 
 function startRecording() {
-    // API 키 확인
-    if (!state.apiKey) {
-        showToast('먼저 설정에서 API 키를 입력해주세요.', 'error');
-        elements.settingsPanel.classList.add('active');
-        return;
-    }
 
     state.isRecording = true;
     state.transcribedText = '';
@@ -330,8 +266,7 @@ async function processWithAI(text) {
 
         if (error.message.includes('API key')) {
             errorMessage = 'API 키가 유효하지 않습니다.';
-            detailedError += '\n\n해결방법:\n1. 설정에서 API 키 확인\n2. https://makersuite.google.com/app/apikey 에서 새 키 발급';
-            elements.settingsPanel.classList.add('active');
+            detailedError += '\n\n개발자에게 문의하세요.';
         } else if (error.message.includes('quota') || error.message.includes('429')) {
             errorMessage = 'API 할당량이 초과되었습니다.';
             detailedError += '\n\n해결방법:\n1. 잠시 후 다시 시도\n2. 새 API 키 발급';
@@ -384,7 +319,7 @@ created: ${new Date().toISOString().slice(0, 16).replace('T', ' ')}
 ## 메모
 [추가 컨텍스트나 인사이트]`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${state.apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -459,8 +394,7 @@ async function saveToObsidian() {
     try {
         // File System Access API 사용
         if (!state.vaultHandle) {
-            showToast('먼저 설정에서 Obsidian 볼트 폴더를 선택해주세요.', 'error');
-            elements.settingsPanel.classList.add('active');
+            showToast('먼저 Obsidian 볼트 폴더를 선택해주세요.', 'error');
             return;
         }
 
