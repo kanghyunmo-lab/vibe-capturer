@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini API 전체 테스트</title>
+    <style>
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+
+        h1 {
+            color: #a29bfe;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #a29bfe;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        button:hover {
+            background: #6c5ce7;
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        #results {
+            margin-top: 20px;
+            padding: 20px;
+            background: #16213e;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .success {
+            color: #00d2d3;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #ff4757;
+        }
+
+        .info {
+            color: #ffa502;
+        }
+
+        .section {
+            border-left: 3px solid #a29bfe;
+            padding-left: 10px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🧪 Gemini API 전체 테스트</h1>
+    <p>모든 모델과 API 버전을 테스트하여 작동하는 조합을 찾습니다.</p>
+
+    <button id="testBtn" onclick="runTests()">테스트 시작</button>
+
+    <div id="results"></div>
+
+    <script>
+        const API_KEY = 'AIzaSyDjeivNn-fOTFQGrfCL02nkRWekAJcX8QM';
+        const resultsDiv = document.getElementById('results');
+        const testBtn = document.getElementById('testBtn');
+
+        async function runTests() {
+            testBtn.disabled = true;
+            resultsDiv.innerHTML = '<div class="info">⏳ 테스트 시작...</div>\n\n';
+
+            const modelsToTest = [
+                'gemini-pro',
+                'gemini-1.5-pro',
+                'gemini-1.5-flash',
+                'gemini-1.5-flash-latest',
+                'gemini-2.0-flash-exp',
+                'models/gemini-pro',
+                'models/gemini-1.5-pro',
+                'models/gemini-1.5-flash'
+            ];
+
+            const apiVersions = ['v1beta', 'v1'];
+
+            let successfulCombinations = [];
+
+            for (const version of apiVersions) {
+                log(`\n${'='.repeat(60)}`);
+                log(`📍 API 버전: ${version}`, 'info');
+                log('='.repeat(60));
+
+                for (const model of modelsToTest) {
+                    const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${API_KEY}`;
+
+                    try {
+                        log(`\n🧪 테스트: ${version}/${model}`);
+
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                contents: [{
+                                    parts: [{
+                                        text: '안녕하세요'
+                                    }]
+                                }]
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (response.ok) {
+                            const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '응답 없음';
+                            log(`✅ 성공!`, 'success');
+                            log(`   응답: ${responseText.substring(0, 100)}...`);
+                            successfulCombinations.push({ version, model, url });
+                        } else {
+                            log(`❌ 실패: ${response.status} ${response.statusText}`, 'error');
+                            log(`   오류: ${data.error?.message || JSON.stringify(data).substring(0, 200)}`);
+                        }
+
+                    } catch (error) {
+                        log(`❌ 네트워크 오류: ${error.message}`, 'error');
+                    }
+
+                    // API 호출 제한 방지
+                    await sleep(800);
+                }
+            }
+
+            // 결과 요약
+            log(`\n\n${'='.repeat(60)}`);
+            log('📊 테스트 결과 요약', 'info');
+            log('='.repeat(60));
+
+            if (successfulCombinations.length > 0) {
+                log(`\n✅ 성공한 조합: ${successfulCombinations.length}개\n`, 'success');
+                successfulCombinations.forEach((combo, index) => {
+                    log(`${index + 1}. ${combo.version}/${combo.model}`, 'success');
+                    log(`   URL: ${combo.url.replace(API_KEY, 'YOUR_API_KEY')}\n`);
+                });
+
+                log('\n🎯 권장 사항:', 'info');
+                const recommended = successfulCombinations[0];
+                log(`app.js에서 다음 URL을 사용하세요:`, 'success');
+                log(`https://generativelanguage.googleapis.com/${recommended.version}/models/${recommended.model}:generateContent?key=\${API_KEY}`, 'success');
+            } else {
+                log('\n❌ 작동하는 모델을 찾지 못했습니다.', 'error');
+                log('\n가능한 원인:', 'error');
+                log('1. API 키가 유효하지 않음');
+                log('2. API 키가 활성화되지 않음');
+                log('3. Gemini API가 활성화되지 않음');
+                log('4. 네트워크 연결 문제');
+                log('\n해결 방법:');
+                log('1. https://makersuite.google.com/app/apikey 에서 새 API 키 발급');
+                log('2. Google Cloud Console에서 Gemini API 활성화');
+            }
+
+            testBtn.disabled = false;
+        }
+
+        function log(message, type = '') {
+            const className = type ? `class="${type}"` : '';
+            resultsDiv.innerHTML += `<div ${className}>${escapeHtml(message)}</div>`;
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+
+</html>
