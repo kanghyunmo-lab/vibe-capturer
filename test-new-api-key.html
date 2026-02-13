@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>새 API 키 테스트</title>
+    <style>
+        body {
+            font-family: 'Consolas', monospace;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+
+        h1 {
+            color: #a29bfe;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #a29bfe;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        button:hover {
+            background: #6c5ce7;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #16213e;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-size: 14px;
+        }
+
+        .success {
+            color: #00d2d3;
+        }
+
+        .error {
+            color: #ff4757;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔑 새 API 키 테스트</h1>
+    <p>새로 발급받은 API 키가 정상 작동하는지 확인합니다.</p>
+
+    <button onclick="testAPI()">API 테스트 시작</button>
+
+    <div id="result"></div>
+
+    <script>
+        const NEW_API_KEY = 'AIzaSyAx_mcH4gxwkX5Etw56WeX4QmKk34ilkog';
+
+        async function testAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '⏳ 테스트 중...\n\n';
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${NEW_API_KEY}`;
+
+            try {
+                log('📍 테스트 URL:');
+                log(url.replace(NEW_API_KEY, 'YOUR_API_KEY'));
+                log('\n🧪 API 호출 중...\n');
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: '안녕하세요, 간단히 인사해주세요.'
+                            }]
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+
+                log(`📊 HTTP 상태: ${response.status} ${response.statusText}\n`);
+
+                if (response.ok) {
+                    const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '응답 없음';
+                    log('✅ 성공!', 'success');
+                    log(`\nAPI 응답:\n${responseText}\n`, 'success');
+                    log('\n🎉 새 API 키가 정상 작동합니다!', 'success');
+                } else {
+                    log('❌ 실패', 'error');
+                    log(`\n오류 상세:\n${JSON.stringify(data, null, 2)}`, 'error');
+
+                    if (data.error?.message?.includes('quota') || data.error?.message?.includes('429')) {
+                        log('\n⚠️ 이 API 키도 할당량이 초과되었습니다.', 'error');
+                        log('\n가능한 원인:', 'error');
+                        log('1. 이 API 키를 이미 다른 곳에서 많이 사용함');
+                        log('2. Google 계정의 전체 할당량 제한');
+                        log('3. 프로젝트 단위 할당량 제한');
+                        log('\n해결 방법:');
+                        log('1. 다른 Google 계정으로 새 API 키 발급');
+                        log('2. Google Cloud Console에서 할당량 확인');
+                        log('3. 유료 플랜 고려');
+                    } else if (data.error?.message?.includes('API key')) {
+                        log('\n⚠️ API 키가 유효하지 않습니다.', 'error');
+                        log('\n해결 방법:');
+                        log('1. API 키를 다시 확인');
+                        log('2. 새 API 키 재발급');
+                    }
+                }
+
+            } catch (error) {
+                log('❌ 네트워크 오류', 'error');
+                log(`\n${error.message}`, 'error');
+            }
+        }
+
+        function log(message, type = '') {
+            const resultDiv = document.getElementById('result');
+            const className = type ? ` class="${type}"` : '';
+            resultDiv.innerHTML += `<div${className}>${escapeHtml(message)}</div>`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+
+</html>

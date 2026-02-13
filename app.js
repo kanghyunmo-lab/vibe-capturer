@@ -1,6 +1,5 @@
 // ==================== 설정 ====================
-// 🔑 API 키가 코드에 직접 설정되어 있습니다
-const API_KEY = 'AIzaSyAx_mcH4gxwkX5Etw56WeX4QmKk34ilkog';
+// 🎤 음성을 텍스트로 변환하는 간단한 버전 (AI 없음)
 const VAULT_PATH = 'L:\\obsidian auto\\';
 
 // ==================== 상태 관리 ====================
@@ -146,12 +145,9 @@ function stopRecording() {
     console.log('- transcribedText:', state.transcribedText);
     console.log('- interimText:', state.interimText);
 
-    // AI 처리 시작
+    // 간단한 마크다운 생성 (AI 없이)
     if (finalText) {
-        // 짧은 지연 후 처리 (음성 인식 완전 종료 대기)
-        setTimeout(() => {
-            processWithAI(finalText);
-        }, 300);
+        createSimpleMarkdown(finalText);
     } else {
         showToast('녹음된 내용이 없습니다. 다시 시도해주세요.', 'error');
         console.warn('녹음된 텍스트가 비어있습니다.');
@@ -364,7 +360,8 @@ function displayMarkdownPreview(markdown, category) {
     const categoryMap = {
         '영업': 'sales',
         '마라톤': 'marathon',
-        '아이디어': 'idea'
+        '아이디어': 'idea',
+        '메모': 'note'
     };
 
     const categoryClass = categoryMap[category] || 'idea';
