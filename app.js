@@ -1,20 +1,21 @@
 // ==================== 설정 ====================
-// 🔑 여기에 Google Gemini API 키를 입력하세요
+// 🔑 Google Gemini API 키는 설정 메뉴에서 입력하세요
 // API 키 발급: https://makersuite.google.com/app/apikey
-const DEFAULT_API_KEY = 'AIzaSyDjeivNn-fOTFQGrfCL02nkRWekAJcX8QM'; // ← 여기에 API 키를 입력하세요
 
 // ==================== 상태 관리 ====================
 const state = {
     isRecording: false,
     recognition: null,
     transcribedText: '',
+    interimText: '',
     startTime: null,
     timerInterval: null,
-    apiKey: localStorage.getItem('gemini_api_key') || DEFAULT_API_KEY,
+    apiKey: localStorage.getItem('gemini_api_key') || '',
     vaultPath: localStorage.getItem('vault_path') || 'L:\\obsidian auto\\',
     vaultHandle: null,
     currentMarkdown: '',
-    currentCategory: ''
+    currentCategory: '',
+    isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 };
 
 // ==================== DOM 요소 ====================
@@ -47,6 +48,12 @@ function init() {
     // 설정 불러오기
     if (state.apiKey) {
         elements.apiKeyInput.value = state.apiKey;
+    } else {
+        // API 키가 없으면 설정 패널 자동 열기
+        setTimeout(() => {
+            elements.settingsPanel.classList.add('active');
+            showToast('먼저 Google Gemini API 키를 입력해주세요.', 'error');
+        }, 500);
     }
     elements.vaultPathInput.value = state.vaultPath;
 
@@ -61,8 +68,11 @@ function init() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     state.recognition = new SpeechRecognition();
     state.recognition.lang = 'ko-KR';
-    state.recognition.continuous = true;
+    // 모바일에서는 continuous 모드 비활성화 (안정성 향상)
+    state.recognition.continuous = !state.isMobile;
     state.recognition.interimResults = true;
+
+    console.log('초기화 완료 - 모바일:', state.isMobile, 'Continuous:', state.recognition.continuous);
 
     // 이벤트 리스너 설정
     setupEventListeners();
@@ -145,6 +155,7 @@ function startRecording() {
 
     state.isRecording = true;
     state.transcribedText = '';
+    state.interimText = '';
     state.startTime = Date.now();
 
     // UI 업데이트
@@ -162,10 +173,11 @@ function startRecording() {
 
     // 음성 인식 시작
     try {
+        console.log('음성 인식 시작...');
         state.recognition.start();
     } catch (error) {
         console.error('음성 인식 시작 오류:', error);
-        showToast('음성 인식을 시작할 수 없습니다.', 'error');
+        showToast('음성 인식을 시작할 수 없습니다: ' + error.message, 'error');
         stopRecording();
     }
 }
@@ -185,13 +197,28 @@ function stopRecording() {
     stopTimer();
 
     // 음성 인식 중지
-    state.recognition.stop();
+    try {
+        state.recognition.stop();
+    } catch (error) {
+        console.error('음성 인식 중지 오류:', error);
+    }
+
+    // 마지막 interim 텍스트도 포함 (모바일 대응)
+    const finalText = (state.transcribedText + ' ' + state.interimText).trim();
+    
+    console.log('녹음 중지 - 최종 텍스트:', finalText);
+    console.log('- transcribedText:', state.transcribedText);
+    console.log('- interimText:', state.interimText);
 
     // AI 처리 시작
-    if (state.transcribedText.trim()) {
-        processWithAI(state.transcribedText);
+    if (finalText) {
+        // 짧은 지연 후 처리 (음성 인식 완전 종료 대기)
+        setTimeout(() => {
+            processWithAI(finalText);
+        }, 300);
     } else {
-        showToast('녹음된 내용이 없습니다.', 'error');
+        showToast('녹음된 내용이 없습니다. 다시 시도해주세요.', 'error');
+        console.warn('녹음된 텍스트가 비어있습니다.');
     }
 }
 
@@ -228,7 +255,11 @@ function handleSpeechResult(event) {
 
     if (finalTranscript) {
         state.transcribedText += finalTranscript;
+        console.log('최종 텍스트 추가:', finalTranscript);
     }
+    
+    // interim 텍스트 저장 (모바일에서 final로 전환 안 될 수 있음)
+    state.interimText = interimTranscript;
 
     // 실시간 표시
     const textElement = elements.transcriptionBox.querySelector('.text');
@@ -238,39 +269,71 @@ function handleSpeechResult(event) {
 }
 
 function handleSpeechError(event) {
-    console.error('음성 인식 오류:', event.error);
-    if (event.error !== 'no-speech' && event.error !== 'aborted') {
-        showToast(`음성 인식 오류: ${event.error}`, 'error');
+    console.error('음성 인식 오류:', event.error, event);
+    
+    const errorMessages = {
+        'no-speech': '음성이 감지되지 않았습니다. 다시 시도해주세요.',
+        'audio-capture': '마이크에 접근할 수 없습니다. 권한을 확인해주세요.',
+        'not-allowed': '마이크 권한이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.',
+        'network': '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.',
+        'aborted': '음성 인식이 중단되었습니다.'
+    };
+    
+    const message = errorMessages[event.error] || `음성 인식 오류: ${event.error}`;
+    
+    // aborted는 정상적인 중지이므로 표시하지 않음
+    if (event.error !== 'aborted') {
+        showToast(message, 'error');
     }
 }
 
 function handleSpeechEnd() {
+    console.log('음성 인식 종료 - isRecording:', state.isRecording);
+    
     if (state.isRecording) {
-        // 자동으로 재시작 (연속 녹음)
-        try {
-            state.recognition.start();
-        } catch (error) {
-            console.error('음성 인식 재시작 오류:', error);
+        // 연속 모드에서만 자동 재시작
+        if (state.recognition.continuous) {
+            try {
+                console.log('음성 인식 재시작...');
+                state.recognition.start();
+            } catch (error) {
+                console.error('음성 인식 재시작 오류:', error);
+            }
         }
     }
 }
 
 // ==================== AI 처리 ====================
 async function processWithAI(text) {
+    console.log('AI 처리 시작 - 텍스트 길이:', text.length);
     elements.processingIndicator.classList.add('active');
+    elements.recordingStatus.textContent = 'AI 처리 중...';
+    elements.recordingStatus.classList.add('active');
 
     try {
         const result = await callGeminiAPI(text);
         state.currentMarkdown = result.markdown;
         state.currentCategory = result.category;
 
+        console.log('AI 처리 완료 - 카테고리:', result.category);
         displayMarkdownPreview(result.markdown, result.category);
         elements.processingIndicator.classList.remove('active');
-        showToast('AI 처리가 완료되었습니다.', 'success');
+        elements.recordingStatus.classList.remove('active');
+        showToast('AI 처리가 완료되었습니다! ✨', 'success');
     } catch (error) {
         console.error('AI 처리 오류:', error);
         elements.processingIndicator.classList.remove('active');
-        showToast('AI 처리 중 오류가 발생했습니다: ' + error.message, 'error');
+        elements.recordingStatus.classList.remove('active');
+        
+        let errorMessage = 'AI 처리 중 오류가 발생했습니다.';
+        if (error.message.includes('API key')) {
+            errorMessage = 'API 키가 유효하지 않습니다. 설정을 확인해주세요.';
+            elements.settingsPanel.classList.add('active');
+        } else if (error.message.includes('quota')) {
+            errorMessage = 'API 할당량이 초과되었습니다. 나중에 다시 시도해주세요.';
+        }
+        
+        showToast(errorMessage, 'error');
     }
 }
 

@@ -33,9 +33,12 @@
         <div class="settings-panel" id="settingsPanel">
             <h3>설정</h3>
             <div class="setting-item">
-                <label for="apiKey">Google Gemini API 키</label>
-                <input type="password" id="apiKey" placeholder="API 키를 입력하세요">
-                <small>API 키는 브라우저에만 저장되며 외부로 전송되지 않습니다.</small>
+                <label for="apiKey">Google Gemini API 키 <span style="color: #ff4757;">*필수</span></label>
+                <input type="password" id="apiKey" placeholder="AIza...로 시작하는 API 키">
+                <small>
+                    <a href="https://makersuite.google.com/app/apikey" target="_blank" style="color: #a29bfe; text-decoration: underline;">여기서 무료로 발급받기</a> 
+                    | API 키는 브라우저에만 저장됩니다.
+                </small>
             </div>
             <div class="setting-item">
                 <label for="vaultPath">Obsidian 볼트 경로</label>
