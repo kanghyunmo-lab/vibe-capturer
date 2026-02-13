@@ -1,6 +1,6 @@
 // ==================== 설정 ====================
 // 🔑 API 키가 코드에 직접 설정되어 있습니다
-const API_KEY = 'AIzaSyDjeivNn-fOTFQGrfCL02nkRWekAJcX8QM';
+const API_KEY = 'AIzaSyAx_mcH4gxwkX5Etw56WeX4QmKk34ilkog';
 const VAULT_PATH = 'L:\\obsidian auto\\';
 
 // ==================== 상태 관리 ====================
